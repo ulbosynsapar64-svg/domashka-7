@@ -2,186 +2,233 @@ package shablon.lab;
 
 import java.util.*;
 
-// ============================================================
-// STRATEGY PATTERN — ТӨЛЕМ ӘДІСТЕРІ
-// ============================================================
+// =======================
+// ===== 1. COMMAND =====
+// =======================
 
-interface IPaymentStrategy {
-    void pay(double amount);
+// Интерфейс команд
+interface ICommand {
+    void execute();
+    void undo();
 }
 
-class CreditCardPayment implements IPaymentStrategy {
-    @Override
-    public void pay(double amount) {
-        System.out.println("💳 Банктік картамен төлем жасалды: " + amount + " ₸");
+// Устройства
+class Light {
+    public void turnOn() {
+        System.out.println("💡 Жарық қосылды");
+    }
+    public void turnOff() {
+        System.out.println("🌑 Жарық сөндірілді");
     }
 }
 
-class PayPalPayment implements IPaymentStrategy {
-    @Override
-    public void pay(double amount) {
-        System.out.println("💻 PayPal арқылы төлем жасалды: " + amount + " ₸");
+class Door {
+    public void open() {
+        System.out.println("🚪 Есік ашылды");
+    }
+    public void close() {
+        System.out.println("🔒 Есік жабылды");
     }
 }
 
-class CryptoPayment implements IPaymentStrategy {
-    @Override
-    public void pay(double amount) {
-        System.out.println("🪙 Криптовалюта арқылы төлем жасалды: " + amount + " ₸");
+class Thermostat {
+    private int temperature = 22;
+    public void increase() {
+        temperature++;
+        System.out.println("🔥 Температура көтерілді: " + temperature + "°C");
+    }
+    public void decrease() {
+        temperature--;
+        System.out.println("❄️ Температура төмендеді: " + temperature + "°C");
     }
 }
 
-class PaymentContext {
-    private IPaymentStrategy strategy;
+// Команды
+class LightOnCommand implements ICommand {
+    private Light light;
+    public LightOnCommand(Light light) { this.light = light; }
+    public void execute() { light.turnOn(); }
+    public void undo() { light.turnOff(); }
+}
 
-    public void setStrategy(IPaymentStrategy strategy) {
-        this.strategy = strategy;
+class DoorOpenCommand implements ICommand {
+    private Door door;
+    public DoorOpenCommand(Door door) { this.door = door; }
+    public void execute() { door.open(); }
+    public void undo() { door.close(); }
+}
+
+class ThermostatIncreaseCommand implements ICommand {
+    private Thermostat thermostat;
+    public ThermostatIncreaseCommand(Thermostat thermostat) { this.thermostat = thermostat; }
+    public void execute() { thermostat.increase(); }
+    public void undo() { thermostat.decrease(); }
+}
+
+// Invoker
+class Invoker {
+    private Stack<ICommand> history = new Stack<>();
+    public void executeCommand(ICommand command) {
+        command.execute();
+        history.push(command);
     }
-
-    public void executePayment(double amount) {
-        if (strategy == null) {
-            System.out.println("⚠ Төлем әдісі таңдалмаған!");
+    public void undoLastCommand() {
+        if (!history.isEmpty()) {
+            ICommand last = history.pop();
+            System.out.println("⏪ Соңғы әрекет жойылды:");
+            last.undo();
         } else {
-            strategy.pay(amount);
+            System.out.println("❗ Жоюға команда жоқ!");
         }
     }
 }
 
-class StrategyDemo {
-    public static void run() {
+
+// ==============================
+// ===== 2. TEMPLATE METHOD =====
+// ==============================
+
+abstract class Beverage {
+    final void prepareRecipe() {
+        boilWater();
+        brew();
+        pourInCup();
+        if (customerWantsCondiments()) addCondiments();
+    }
+
+    void boilWater() { System.out.println("💧 Су қайнатылды"); }
+    void pourInCup() { System.out.println("☕ Кесе толтырылды"); }
+
+    abstract void brew();
+    abstract void addCondiments();
+
+    boolean customerWantsCondiments() { return true; }
+}
+
+class Tea extends Beverage {
+    void brew() { System.out.println("🍵 Шай демделді"); }
+    void addCondiments() { System.out.println("🍋 Лимон қосылды"); }
+}
+
+class Coffee extends Beverage {
+    void brew() { System.out.println("☕ Кофе қайнатылды"); }
+    void addCondiments() { System.out.println("🥛 Қант пен сүт қосылды"); }
+    boolean customerWantsCondiments() {
         Scanner sc = new Scanner(System.in);
-        PaymentContext context = new PaymentContext();
+        System.out.print("Қант пен сүт қосайын ба (иә/жоқ)? ");
+        String ans = sc.nextLine();
+        return ans.equalsIgnoreCase("иә");
+    }
+}
 
-        System.out.println("\n=== STRATEGY PATTERN ===");
-        System.out.println("1 - Банктік карта");
-        System.out.println("2 - PayPal");
-        System.out.println("3 - Криптовалюта");
+class HotChocolate extends Beverage {
+    void brew() { System.out.println("🍫 Какао ұнтағы араластырылды"); }
+    void addCondiments() { System.out.println("🍬 Кілегей мен зефир қосылды"); }
+}
 
-        System.out.print("Төлем әдісін таңдаңыз (1-3): ");
-        int choice = sc.nextInt();
 
-        System.out.print("Соманы енгізіңіз: ");
-        double amount = sc.nextDouble();
+// ============================
+// ===== 3. MEDIATOR CHAT =====
+// ============================
 
-        switch (choice) {
-            case 1 -> context.setStrategy(new CreditCardPayment());
-            case 2 -> context.setStrategy(new PayPalPayment());
-            case 3 -> context.setStrategy(new CryptoPayment());
-            default -> {
-                System.out.println("⚠ Мұндай нұсқа жоқ!");
-                return;
+interface IMediator {
+    void sendMessage(String message, User sender);
+    void addUser(User user);
+}
+
+class ChatRoom implements IMediator {
+    private List<User> users = new ArrayList<>();
+    public void addUser(User user) {
+        users.add(user);
+        System.out.println("👤 " + user.getName() + " чатқа қосылды.");
+    }
+    public void sendMessage(String message, User sender) {
+        for (User user : users) {
+            if (user != sender) {
+                user.receive(message, sender.getName());
             }
         }
-
-        context.executePayment(amount);
-        sc.close();
     }
 }
 
-// ============================================================
-// OBSERVER PATTERN — ВАЛЮТА КУРСЫН БАҚЫЛАУ
-// ============================================================
+abstract class User {
+    protected IMediator mediator;
+    protected String name;
 
-interface IObserver {
-    void update(double usdRate);
+    public User(IMediator mediator, String name) {
+        this.mediator = mediator;
+        this.name = name;
+    }
+
+    public String getName() { return name; }
+    public abstract void send(String message);
+    public abstract void receive(String message, String sender);
 }
 
-interface ISubject {
-    void attach(IObserver observer);
-    void detach(IObserver observer);
-    void notifyObservers();
-}
-
-class CurrencyExchange implements ISubject {
-    private List<IObserver> observers = new ArrayList<>();
-    private double usdRate;
-
-    public void setUsdRate(double rate) {
-        this.usdRate = rate;
-        System.out.println("\nВалюта бағамы өзгерді: 1 USD = " + rate + " ₸");
-        notifyObservers();
+class ChatUser extends User {
+    public ChatUser(IMediator mediator, String name) {
+        super(mediator, name);
     }
 
-    @Override
-    public void attach(IObserver observer) {
-        observers.add(observer);
+    public void send(String message) {
+        System.out.println("💬 " + name + " жібереді: " + message);
+        mediator.sendMessage(message, this);
     }
 
-    @Override
-    public void detach(IObserver observer) {
-        observers.remove(observer);
-    }
-
-    @Override
-    public void notifyObservers() {
-        for (IObserver obs : observers) {
-            obs.update(usdRate);
-        }
+    public void receive(String message, String sender) {
+        System.out.println("📩 " + name + " алды (" + sender + "): " + message);
     }
 }
 
-class MobileAppDisplay implements IObserver {
-    @Override
-    public void update(double usdRate) {
-        System.out.println("Мобильді қосымша: USD бағамы жаңарды — " + usdRate + " ₸");
-    }
-}
 
-class WebsiteDisplay implements IObserver {
-    @Override
-    public void update(double usdRate) {
-        System.out.println("Веб-сайтта жаңа курс: " + usdRate + " ₸");
-    }
-}
-
-class EmailNotifier implements IObserver {
-    @Override
-    public void update(double usdRate) {
-        System.out.println("Email хабарлама: USD бағамы " + usdRate + " ₸ болып өзгерді.");
-    }
-}
-
-class ObserverDemo {
-    public static void run() {
-        CurrencyExchange exchange = new CurrencyExchange();
-
-        IObserver app = new MobileAppDisplay();
-        IObserver site = new WebsiteDisplay();
-        IObserver email = new EmailNotifier();
-
-        exchange.attach(app);
-        exchange.attach(site);
-        exchange.attach(email);
-
-        exchange.setUsdRate(478.25);
-        exchange.setUsdRate(481.50);
-
-        exchange.detach(site);
-        exchange.setUsdRate(485.75);
-    }
-}
-
-// ============================================================
-// MAIN — ПАЙДАЛАНУШЫ ҮШІН МЕНЮ
-// ============================================================
+// ============================
+// ======== MAIN ==============
+// ============================
 
 public class Main {
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        System.out.println("\n============================");
+        System.out.println("🏠 ПАТТЕРН 1: COMMAND (Ақылды үй)");
+        System.out.println("============================");
 
-        System.out.println("=== ДИЗАЙН ПАТТЕРНДЕР ДЕМОНСТРАЦИЯСЫ ===");
-        System.out.println("1 - Strategy (Төлем жүйесі)");
-        System.out.println("2 - Observer (Валюталық курс)");
-        System.out.print("Таңдаңыз (1 немесе 2): ");
+        Light light = new Light();
+        Door door = new Door();
+        Thermostat thermostat = new Thermostat();
+        Invoker remote = new Invoker();
 
-        int choice = sc.nextInt();
+        remote.executeCommand(new LightOnCommand(light));
+        remote.executeCommand(new DoorOpenCommand(door));
+        remote.executeCommand(new ThermostatIncreaseCommand(thermostat));
+        remote.undoLastCommand();
 
-        switch (choice) {
-            case 1 -> StrategyDemo.run();
-            case 2 -> ObserverDemo.run();
-            default -> System.out.println("Қате таңдау!");
-        }
+        System.out.println("\n============================");
+        System.out.println("☕ ПАТТЕРН 2: TEMPLATE METHOD (Сусындар)");
+        System.out.println("============================");
 
-        sc.close();
+        Beverage tea = new Tea();
+        tea.prepareRecipe();
+
+        Beverage coffee = new Coffee();
+        coffee.prepareRecipe();
+
+        Beverage chocolate = new HotChocolate();
+        chocolate.prepareRecipe();
+
+        System.out.println("\n============================");
+        System.out.println("💬 ПАТТЕРН 3: MEDIATOR (Чат)");
+        System.out.println("============================");
+
+        ChatRoom chatRoom = new ChatRoom();
+        User ulbo = new ChatUser(chatRoom, "Улбо");
+        User ali = new ChatUser(chatRoom, "Әли");
+        User aisha = new ChatUser(chatRoom, "Айша");
+
+        chatRoom.addUser(ulbo);
+        chatRoom.addUser(ali);
+        chatRoom.addUser(aisha);
+
+        ulbo.send("Сәлем, достар!");
+        ali.send("Сәлем, Улбо!");
+        aisha.send("Қалайсыңдар?");
     }
 }
